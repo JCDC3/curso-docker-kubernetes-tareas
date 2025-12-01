@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  web:
+    image: nginx:stable-alpine
+    container_name: clase3_web
+    ports:
+      - "8080:80"                 # HTTP desde host -> nginx
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+    networks:
+      - app-network
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    container_name: clase3_db
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: S3cretPassw0rd
+      POSTGRES_DB: appdb
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # opcional: pgAdmin para destacar
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: clase3_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    networks:
+      - app-network
+    depends_on:
+      - db
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  db-data:
+    name: clase3_db_data
+
