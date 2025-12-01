@@ -61,5 +61,5 @@ nginx sirviendo contenido estático y PostgreSQL como base de datos persistente.
 ![docker network ls](screenshots/RedCustom.png)
 
 #### 5. Haciendo ping entre servicios
-°[Ping entre servicios](screenshots/PingEntreServicios.png)
+![Ping entre servicios](screenshots/PingEntreServicios.png)
 
