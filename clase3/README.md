@@ -55,11 +55,11 @@ nginx sirviendo contenido estático y PostgreSQL como base de datos persistente.
 ![Aplicacioes web funcionando](screenshots/AplicacionesWebFuncionando.png)
 
 #### 3. Volumen Persistente
-![Volumen persistente](VolumenPersistente.png)
+![Volumen persistente](screenshots/VolumenPersistente.png)
 
 #### 4. Mostrando la red custom
-![docker network ls](RedCustom.png)
+![docker network ls](screenshots/RedCustom.png)
 
 #### 5. Haciendo ping entre servicios
-°[Ping entre servicios](PingEntreServicios.png)
+°[Ping entre servicios](screenshots/PingEntreServicios.png)
 
