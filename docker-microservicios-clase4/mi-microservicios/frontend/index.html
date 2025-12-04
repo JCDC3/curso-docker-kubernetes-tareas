@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microservicio de Blog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 sm:p-8">
+
+    <div class="max-w-4xl mx-auto space-y-8">
+        <!-- Título principal y estado de la cache -->
+        <header class="bg-white p-6 rounded-xl shadow-lg">
+            <h1 class="text-3xl font-bold text-gray-800">Sistema de Blog Microservicios</h1>
+            <p id="cache-status" class="mt-2 text-sm text-gray-600">Estado de la Cache: <span class="font-semibold text-blue-500">Cargando...</span></p>
+        </header>
+
+        <!-- Formulario para crear Post -->
+        <section class="bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Crear Nuevo Post</h2>
+            <form id="post-form" class="space-y-4">
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700">Título</label>
+                    <input type="text" id="title" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border">
+                </div>
+                <div>
+                    <label for="content" class="block text-sm font-medium text-gray-700">Contenido</label>
+                    <textarea id="content" rows="4" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"></textarea>
+                </div>
+                <button type="submit" id="submit-button" class="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md">
+                    Crear Post
+                </button>
+            </form>
+            <p id="message-box" class="mt-4 text-center p-2 rounded-lg hidden"></p>
+        </section>
+
+        <!-- Lista de Posts -->
+        <section class="bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-4">Posts Publicados</h2>
+            <div id="posts-list" class="space-y-4">
+                <p class="text-gray-500">Cargando posts...</p>
+            </div>
+            <button onclick="fetchPosts()" class="mt-4 px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition duration-150 shadow-md w-full">
+                Refrescar Posts
+            </button>
+        </section>
+
+    </div>
+
+    <script>
+        const API_BASE = '/api/posts';
+        const postsList = document.getElementById('posts-list');
+        const postForm = document.getElementById('post-form');
+        const messageBox = document.getElementById('message-box');
+        const cacheStatusEl = document.getElementById('cache-status').querySelector('span');
+        const submitButton = document.getElementById('submit-button');
+
+        // Función para mostrar mensajes temporales
+        function showMessage(text, isError = false) {
+            messageBox.textContent = text;
+            messageBox.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800');
+            messageBox.classList.add(isError ? 'bg-red-100' : 'bg-green-100', isError ? 'text-red-800' : 'text-green-800');
+            
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Función para renderizar un post
+        function renderPost(post) {
+            return `
+                <article class="p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-r-lg shadow-sm">
+                    <h3 class="text-xl font-bold text-gray-900">${post.title}</h3>
+                    <p class="mt-2 text-gray-600 whitespace-pre-line">${post.content}</p>
+                    <p class="mt-2 text-xs text-indigo-700 font-mono">ID: ${post.id}</p>
+                </article>
+            `;
+        }
+
+        // Función para obtener los posts (y verificar cache)
+        async function fetchPosts() {
+            try {
+                const response = await fetch(API_BASE);
+                const data = await response.json();
+
+                // Actualizar estado de la cache
+                const source = data.source === 'cache' ? 'Cache HIT' : 'Database MISS';
+                cacheStatusEl.textContent = source;
+                cacheStatusEl.classList.remove('text-blue-500', 'text-green-500', 'text-red-500');
+                cacheStatusEl.classList.add(data.source === 'cache' ? 'text-green-500' : 'text-red-500');
+
+                // Renderizar la lista
+                if (data.data && data.data.length > 0) {
+                    postsList.innerHTML = data.data.map(renderPost).join('');
+                } else {
+                    postsList.innerHTML = '<p class="text-gray-500">Aún no hay posts publicados.</p>';
+                }
+
+            } catch (error) {
+                console.error('Error al obtener posts:', error);
+                postsList.innerHTML = '<p class="text-red-500 font-medium">Error al conectar con la API a través del Gateway.</p>';
+                cacheStatusEl.textContent = 'ERROR';
+                cacheStatusEl.classList.add('text-red-500');
+            }
+        }
+
+        // Manejar el envío del formulario
+        postForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            submitButton.disabled = true;
+            submitButton.textContent = 'Creando...';
+
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+
+            try {
+                const response = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, content })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('Post creado con éxito. La cache ha sido invalidada.', false);
+                    postForm.reset();
+                    // Forzar una recarga para ver el nuevo post y verificar la invalidación
+                    await fetchPosts(); 
+                } else {
+                    showMessage(`Error: ${data.error || data.message || 'Fallo en la creación del post.'}`, true);
+                }
+
+            } catch (error) {
+                console.error('Error al enviar post:', error);
+                showMessage('Error de conexión con el Gateway.', true);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Crear Post';
+            }
+        });
+
+        // Cargar los posts al inicio
+        window.onload = fetchPosts;
+    </script>
+</body>
+</html>

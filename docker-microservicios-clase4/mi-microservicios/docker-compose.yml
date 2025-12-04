@@ -1,0 +1,90 @@
+version: '3.8'
+
+# Definición de la red y los volúmenes
+networks:
+  microservices_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: ${COMPOSE_PROJECT_NAME:-microservices_blog}_postgres_data
+
+services:
+
+  # 1. GATEWAY (Nginx)
+  gateway:
+    container_name: gateway
+    build:
+      context: ./gateway
+    image: nginx-gateway
+    ports:
+      - "8085:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - microservices_network
+    depends_on:
+      - backend
+      - frontend
+
+  # 2. BACKEND API (Node.js Posts Service)
+  backend:
+    container_name: backend
+    build:
+      context: ./service1
+      dockerfile: Dockerfile
+    image: node-posts-service
+    ports:
+      - "5000" # Puerto interno no expuesto directamente
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: blogdb
+      REDIS_HOST: redis
+    networks:
+      - microservices_network
+    depends_on:
+      - db
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # 3. DATABASE (PostgreSQL)
+  db:
+    container_name: postgres_db
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: blogdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - microservices_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 4. CACHE (Redis)
+  redis:
+    container_name: redis_cache
+    image: redis:7-alpine
+    networks:
+      - microservices_network
+    
+  # 5. FRONTEND (Nginx Static)
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: nginx-frontend
+    networks:
+      - microservices_network
